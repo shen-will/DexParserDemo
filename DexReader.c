@@ -135,7 +135,7 @@ LOCAL DexTypeTable* readTypeTable(){
     table->destroy = destroyTable;
 }
 
-LOCAL DexProtoId* readProtoByIndex(unsigned int index){
+LOCAL DexProtoId* readProtoIdByIndex(unsigned int index){
 
     DexHeader *header = readDexHeader();
 
@@ -146,15 +146,15 @@ LOCAL DexProtoId* readProtoByIndex(unsigned int index){
 
 }
 
-LOCAL DexProtoTable* readProtoTable(){
+LOCAL DexProtoIdTable* readProtoIdTable(){
 
     DexHeader *header = readDexHeader();
 
-    DexProtoTable *table = malloc(sizeof(DexProtoTable));
+    DexProtoIdTable *table = newObject(DexProtoIdTable);
 
     table->size = header->protoIdsSize;
 
-    table->at = readProtoByIndex;
+    table->at = readProtoIdByIndex;
 
     table->destroy = destroyTable;
 
@@ -162,7 +162,7 @@ LOCAL DexProtoTable* readProtoTable(){
 
 }
 
-LOCAL DexFieldId* readFieldByIndex(unsigned int index){
+LOCAL DexFieldId* readFieldIdByIndex(unsigned int index){
 
 
     DexHeader *header = readDexHeader();
@@ -173,17 +173,17 @@ LOCAL DexFieldId* readFieldByIndex(unsigned int index){
     return ((DexFieldId*)(fileMap + header->fieldIdsOff)) + index;
 }
 
-LOCAL DexFieldTable* readFieldTable(){
+LOCAL DexFieldIdTable* readFieldIdTable(){
 
     DexHeader *header = readDexHeader();
 
-    DexFieldTable *table = malloc(sizeof(DexFieldTable));
+    DexFieldIdTable *table = newObject(DexFieldIdTable);
     table->size = header->fieldIdsSize;
-    table->at = readFieldByIndex;
+    table->at = readFieldIdByIndex;
     table->destroy = destroyTable;
 }
 
-LOCAL DexMethodId* readMethodByIndex(unsigned int index){
+LOCAL DexMethodId* readMethodIdByIndex(unsigned int index){
 
 
     DexHeader *header = readDexHeader();
@@ -195,12 +195,12 @@ LOCAL DexMethodId* readMethodByIndex(unsigned int index){
 }
 
 
-LOCAL DexMethodTable* readMethodTable(){
+LOCAL DexMethodIdTable* readMethodIdTable(){
     DexHeader *header = readDexHeader();
 
-    DexMethodTable *table = malloc(sizeof(DexMethodTable));
+    DexMethodIdTable *table = newObject(DexMethodIdTable);
     table->size = header->methodIdsSize;
-    table->at = readMethodByIndex;
+    table->at = readMethodIdByIndex;
     table->destroy = destroyTable;
 }
 
@@ -215,12 +215,58 @@ LOCAL DexClassDef* readClassDefByIndex(unsigned int index){
     return ((DexClassDef*)(fileMap+header->classDefsOff))+index;
 }
 
+
+
+LOCAL void readDexField(struct _class_data_header *dataHeader,DexField *field){
+
+    if(dataHeader == NULL || dataHeader->pdata == NULL || field ==NULL)
+        return;
+
+    //static field  / instance field / direct method / virtual method
+    unsigned int len=0;
+    field->fieldIdx = decodeUnsignedLeb128(dataHeader->pdata,&len);
+    dataHeader->pdata +=len;
+    field->accessFlags = decodeUnsignedLeb128(dataHeader->pdata,&len);
+    dataHeader->pdata +=len;
+}
+
+
+LOCAL void readDexMethod(struct _class_data_header *dataHeader,DexMethod *method){
+
+    if(dataHeader == NULL || dataHeader->pdata == NULL || method ==NULL)
+        return;
+
+    unsigned int len =0;
+    method->methodIdx = decodeUnsignedLeb128(dataHeader->pdata,&len);
+    dataHeader->pdata +=len;
+    method->accessFlags = decodeUnsignedLeb128(dataHeader->pdata,&len);
+    dataHeader->pdata +=len;
+    method->codeOff = decodeUnsignedLeb128(dataHeader->pdata,&len);
+    dataHeader->pdata +=len;
+
+}
+
+
+
 LOCAL void readClassDataHeader(unsigned int index,DexClassDataHeader *dataHeader){
 
     DexClassDef *classDef = readClassDefByIndex(index);
 
     if(classDef == NULL)
         return;
+
+    if(classDef->classDataOff == 0){
+
+        dataHeader->staticFieldsSize =0;
+        dataHeader->pdata =NULL;
+        dataHeader->virtualMethodsSize =0;
+        dataHeader->directMethodsSize =0;
+        dataHeader->instanceFieldsSize =0;
+        dataHeader->readDexField = NULL;
+        dataHeader->readDexMethod = NULL;
+        return;
+    }
+
 
     void* pdata = fileMap + classDef->classDataOff;
 
@@ -240,7 +286,11 @@ LOCAL void readClassDataHeader(unsigned int index,DexClassDataHeader *dataHeader
     dataHeader->virtualMethodsSize = decodeUnsignedLeb128(pdata,&len);
     pdata+=len;
 
-    dataHeader->dataOff = (unsigned int)pdata;
+    dataHeader->pdata = pdata;
+
+    dataHeader->readDexMethod =readDexMethod;
+    dataHeader->readDexField = readDexField;
+
 }
 
 LOCAL DexClassDefTable*  readClassDefTable(){
@@ -257,13 +307,18 @@ LOCAL DexClassDefTable*  readClassDefTable(){
     return table;
 }
 
+
+
+
+
+
 LOCAL void* offset(unsigned int len){
     return fileMap +len;
 }
 
 
 _dex_reader DexReader ={init,close,offset,readStringByIndex,readTypeStrByIndex,readDexHeader,
-                        readStringTable,readTypeTable,readProtoTable,readFieldTable,readMethodTable,
+                        readStringTable,readTypeTable,readProtoIdTable,readFieldIdTable,readMethodIdTable,
                         readClassDefTable};
 
 

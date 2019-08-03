@@ -40,7 +40,8 @@ int decodeUnsignedLeb128(u1 *bs, unsigned int *len) {
         }
     }
 
-    *len = (bs - ptr);
+    if(len != NULL)
+        *len = (bs - ptr);
 
     return result;
 
@@ -76,7 +77,8 @@ int decodeSignedLeb128(u1 *bs, unsigned int *len) {
         }
     }
 
-    *len = bs -ptr;
+    if(len != NULL)
+        *len = bs -ptr;
 
     return result;
 

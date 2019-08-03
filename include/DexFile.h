@@ -96,7 +96,7 @@ typedef struct {
 
 typedef struct {
     TableStruct(DexProtoId)
-}DexProtoTable;
+}DexProtoIdTable;
 
 
 
@@ -108,7 +108,7 @@ typedef struct {
 
 typedef struct {
     TableStruct(DexFieldId)
-}DexFieldTable;
+}DexFieldIdTable;
 
 typedef struct {
     u2  classIdx;           /* index into typeIds list for defining class */
@@ -118,7 +118,7 @@ typedef struct {
 
 typedef struct {
     TableStruct(DexMethodId)
-}DexMethodTable;
+}DexMethodIdTable;
 
 
 typedef struct{
@@ -132,18 +132,39 @@ typedef struct{
     u4  staticValuesOff;    /* file offset to DexEncodedArray */
 }DexClassDef;
 
-
+//encoded field
 typedef struct {
+    //origin type is uleb128
+    u4 fieldIdx;    /* index to a field_id_item */
+    u4 accessFlags;
+}DexField;
+
+
+//encoded method
+typedef struct{
+    //origin type is uleb128
+    u4 methodIdx;    /* index to a method_id_item */
+    u4 accessFlags;
+    u4 codeOff;      /* file offset to a code_item */
+}DexMethod;
+
+
+
+typedef struct _class_data_header {
     // origin type is uleb128
     u4 staticFieldsSize;
     u4 instanceFieldsSize;
     u4 directMethodsSize;
     u4 virtualMethodsSize;
 
-    //data offset start of dex file
-    u4 dataOff;
+    //data offset start of dex file  from classdef
+    void *pdata;
+
+    void(*readDexField)(struct _class_data_header *dataHeader,DexField *field);
+    void(*readDexMethod)(struct _class_data_header *dataHeader,DexMethod *method);
 
 }DexClassDataHeader;
+
 
 typedef struct{
     TableStruct(DexClassDef)
@@ -151,24 +172,6 @@ typedef struct{
     void (*dataHeaderAt)(unsigned int,DexClassDataHeader*);
 
 }DexClassDefTable;
-
-
-typedef struct {
-    u4  classAnnotationsOff;  /* offset to DexAnnotationSetItem */
-    u4  fieldsSize;           /* count of DexFieldAnnotationsItem */
-    u4  methodsSize;          /* count of DexMethodAnnotationsItem */
-    u4  parametersSize;       /* count of DexParameterAnnotationsItem */
-    /* followed by DexFieldAnnotationsItem[fieldsSize] */
-    /* followed by DexMethodAnnotationsItem[methodsSize] */
-    /* followed by DexParameterAnnotationsItem[parametersSize] */
-}DexAnnotationsDirectoryItem;
-
-
-
-
-
-
-
 
 
 

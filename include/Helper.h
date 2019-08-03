@@ -70,6 +70,8 @@
 })
 
 
+#define newObject(type) (type*) malloc(sizeof(type))
+
 
 void reverBits(unsigned char *cp, unsigned int len);
 

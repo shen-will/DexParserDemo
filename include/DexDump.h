@@ -7,12 +7,13 @@
 
 typedef struct {
     void (*dumpDexHeader)();
-    void (*dumpProtoTable)();
+    void (*dumpProtoIdTable)();
     void (*dumpTypeTable)();
     void (*dumpStringTable)();
-    void (*dumpFieldTable)();
-    void (*dumpMethodTable)();
+    void (*dumpFieldIdTable)();
+    void (*dumpMethodIdTable)();
     void (*dumpClassDefTable)();
+    void (*dumpClassData)(unsigned int);
 }_dex_dump;
 
 _dex_dump DexDump;

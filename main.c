@@ -11,10 +11,9 @@ int main() {
         puts("dex reader init error");
         return -1;
     }
-    puts(DexReader.readTypeStrByIndex(6));
-    printf("%p\n",DexReader.readTypeStrByIndex);
 
-    DexDump.dumpClassDefTable();
+
+    DexDump.dumpClassData(111);
 
     DexReader.close();
 
