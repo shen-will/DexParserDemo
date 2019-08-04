@@ -174,6 +174,21 @@ typedef struct{
 }DexClassDefTable;
 
 
+typedef struct {
+    u2  registersSize;
+    u2  insSize;
+    u2  outsSize;
+    u2  triesSize;
+    u4  debugInfoOff;       /* file offset to debug info stream */
+    u4  insnsSize;          /* size of the insns array, in u2 units */
+    u2  insns[1];
+    /* followed by optional u2 padding */
+    /* followed by try_item[triesSize] */
+    /* followed by uleb128 handlersSize */
+    /* followed by catch_handler_item[handlersSize] */
+}DexCode;
+
+
 
 enum {
     ACC_PUBLIC       = 0x00000001,       // class, field, method, ic
