@@ -3,17 +3,20 @@
 #include "include/DexDump.h"
 #include "include/Helper.h"
 
+
 int main() {
 
-    char *path = "C:/Users/Hasee/Desktop/classes.dex";
+    //dex path
+    char *path = "";
 
     if(DexReader.init(path) !=0){
         puts("dex reader init error");
         return -1;
     }
 
-
-    DexDump.dumpClassData(111);
+    //DexDump.dumpDexHeader();
+   // DexDump.dumpClassDefTable();
+   //DexDump.dumpClassData(2403);
 
     DexReader.close();
 

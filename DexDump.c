@@ -79,7 +79,12 @@ LOCAL void dumpClassData(unsigned int index){
      * methods.....
      * */
 
-    char *sourceFile =DexReader.readStringByIndex(classDef->sourceFileIdx);
+    char *sourceFile;
+    if(classDef->sourceFileIdx == kDexNoIndex){
+        sourceFile ="unknow";
+    } else{
+        sourceFile = DexReader.readStringByIndex(classDef->sourceFileIdx);
+    }
     printf("source file %s\n",sourceFile);
     int nameLen = strlen(sourceFile) -5;
     char name[nameLen+1];
@@ -92,14 +97,15 @@ LOCAL void dumpClassData(unsigned int index){
     unsigned char isInterface = (classDef->accessFlags && ACC_INTERFACE ) > 0 ? 1 : 0;
 
 
-    char *superClass = readTypeStringWithCopy(classDef->superclassIdx);
+    char *superClass;
+    readTypeStringWithCopy(classDef->superclassIdx,superClass);
 
     char *interfaceStr = NULL;
     if(classDef->interfacesOff == 0){
         interfaceStr = "";
     } else{
         DexTypeList *typeList = (DexTypeList*)DexReader.offset(classDef->interfacesOff);
-        interfaceStr = readTypeListStrWithCopy(typeList);
+        readTypeListStrWithCopy(typeList,interfaceStr);
     }
 
     printf("%s %s %s extends %s implements %s {\n\n",
@@ -108,16 +114,19 @@ LOCAL void dumpClassData(unsigned int index){
 
 
      DexFieldIdTable *fieldIdTable = DexReader.readFieldIdTable();
+     DexMethodIdTable *methodIdTable = DexReader.readMethodIdTable();
+     DexClassDefTable *classDefTable = DexReader.readClassDefTable();
+     DexProtoIdTable  *protoIdTable = DexReader.readProtoIdTable();
 
      DexClassDataHeader dataHeader;
-     DexReader.readClassDefTable()->dataHeaderAt(index,&dataHeader);
+     classDefTable->dataHeaderAt(index,&dataHeader);
 
     //classdata may be empty in some classes(no define field method ...)
      if(dataHeader.pdata != NULL){
          int i=0;
          DexField field;
-         //parse static field
-         for(;i<dataHeader.staticFieldsSize;i++){
+         //parse static field / instance field
+         for(;i<(dataHeader.staticFieldsSize + dataHeader.instanceFieldsSize);i++){
 
              dataHeader.readDexField(&dataHeader,&field);
              char accstr[125];
@@ -125,27 +134,55 @@ LOCAL void dumpClassData(unsigned int index){
 
              DexFieldId *fieldId = fieldIdTable->at(field.fieldIdx);
 
-             char *name = readStringWithCopy(fieldId->nameIdx);
-             char *type = readTypeStringWithCopy(fieldId->typeIdx);
+             char *name;
+             readStringWithCopy(fieldId->nameIdx,name);
+             char *type;
+             readTypeStringWithCopy(fieldId->typeIdx,type);
 
              printf("%s %s %s;\n",accstr,type,name);
 
          }
 
-         //parse instace field
 
+         //parse direct method / virtual method
+         DexMethod method;
+         i =0;
+         for(;i < (dataHeader.directMethodsSize + dataHeader.virtualMethodsSize);i++){
+             dataHeader.readDexMethod(&dataHeader,&method);
+             parseAccessFlags(method.accessFlags,classAccstr);
 
+             DexMethodId *methodId =methodIdTable->at(method.methodIdx);
 
-         //parse direct method
+             char *name;
+             readStringWithCopy(methodId->nameIdx,name);
 
+             DexProtoId *protoId = protoIdTable->at(methodId->protoIdx);
 
-         //parse virtual method
+             char *returnStr;
+             readTypeStringWithCopy(protoId->returnTypeIdx,returnStr);
+
+             char *params;
+             if(protoId->parametersOff == 0){
+                 params ="";
+             } else{
+                 DexTypeList *typeList = (DexTypeList*)DexReader.offset(protoId->parametersOff);
+                 readTypeListStrWithCopy(typeList,params);
+             }
+
+             printf("%s %s %s(%s){\n//no code parse...\n}\n",classAccstr,returnStr,name,params);
+
+         }
 
      }
 
 
-    //end class
-    puts("\n}");
+     //end class
+     puts("\n}");
+
+     fieldIdTable->destroy((struct _table_struct*)fieldIdTable);
+     methodIdTable->destroy((struct _table_struct*)methodIdTable);
+     classDefTable->destroy((struct _table_struct*)classDefTable);
+     protoIdTable->destroy((struct _table_struct*)protoIdTable);
 
 }
 
@@ -204,21 +241,21 @@ LOCAL void dumpProtoTable(){
 
         char *params=NULL;
         if(id->parametersOff>0){
-            DexTypeList *type_list =(DexTypeList*)DexReader.offset(id->parametersOff);
+            DexTypeList *typeList =(DexTypeList*)DexReader.offset(id->parametersOff);
             int k =0;
-            for(;k<type_list->size;k++){
-                char *type = DexReader.readTypeStrByIndex(type_list->list[k].typeIdx);
-                int len_type =strlen(type);
+            for(;k<typeList->size;k++){
+                char *type = DexReader.readTypeStrByIndex(typeList->list[k].typeIdx);
+                int lenType =strlen(type);
 
-                int bak_len = params == NULL ? 0 : strlen(params);
+                int bakLen = params == NULL ? 0 : strlen(params);
                 if(params == NULL){
-                    params = malloc(len_type+2);
+                    params = malloc(lenType+2);
                     params[0]=0;
                 } else{
-                    params = realloc(params,bak_len+len_type+2);
+                    params = realloc(params,bakLen+lenType+2);
                 }
 
-                sprintf(params+bak_len,"%s;",type);
+                sprintf(params+bakLen,"%s;",type);
             }
         }
 
@@ -298,7 +335,7 @@ LOCAL void dumpMethodTable(){
 
     DexMethodIdTable *table = DexReader.readMethodIdTable();
 
-    DexProtoIdTable *pro_table = DexReader.readProtoIdTable();
+    DexProtoIdTable *proTable = DexReader.readProtoIdTable();
 
     SHOW_COUNT_TIP("method",table->size);
 
@@ -311,25 +348,25 @@ LOCAL void dumpMethodTable(){
         printf("定义类: %s\n",DexReader.readTypeStrByIndex(id->classIdx));
         printf("字段名: %s\n",DexReader.readStringByIndex(id->nameIdx));
 
-        DexProtoId *proid = pro_table->at(id->protoIdx);
+        DexProtoId *proid = proTable->at(id->protoIdx);
 
         char *params=NULL;
         if(proid->parametersOff>0){
-            DexTypeList *type_list =(DexTypeList*)DexReader.offset(proid->parametersOff);
+            DexTypeList *typeList =(DexTypeList*)DexReader.offset(proid->parametersOff);
             int k =0;
-            for(;k<type_list->size;k++){
-                char *type = DexReader.readTypeStrByIndex(type_list->list[k].typeIdx);
-                int len_type =strlen(type);
+            for(;k<typeList->size;k++){
+                char *type = DexReader.readTypeStrByIndex(typeList->list[k].typeIdx);
+                int lenType =strlen(type);
 
-                int bak_len = params == NULL ? 0 : strlen(params);
+                int bakLen = params == NULL ? 0 : strlen(params);
                 if(params == NULL){
-                    params = malloc(len_type+2);
+                    params = malloc(lenType+2);
                     params[0]=0;
                 } else{
-                    params = realloc(params,bak_len+len_type+2);
+                    params = realloc(params,bakLen+lenType+2);
                 }
 
-                sprintf(params+bak_len,"%s;",type);
+                sprintf(params+bakLen,"%s;",type);
             }
         }
 
@@ -355,6 +392,14 @@ LOCAL void dumpDexHeader(){
 
     DexHeader *header=DexReader.readDexHeader();
 
+    char *magic;
+    repCharWithCopy(header->magic,magic,'\n',' ',0);
+
+    char *signature;
+   // bitsToHexStr(header->signature,signature,kSHA1DigestLen);
+
+    _bitsToHexStr(header->signature,signature,short,kSHA1DigestLen/sizeof(short));
+
     printf("magic %s\nchecksum %X\nsignature %s\nfileSize %u byte\n"
            "headerSize %u\nendianTag %#X\n"
            "linkSize %u\n"
@@ -375,9 +420,9 @@ LOCAL void dumpDexHeader(){
             "dataSize %u\n"
             "dataOff %u\n",
 
-            repCharWithCopy(header->magic,'\n',' ',0),
+            magic,
             header->checksum,
-            bitsToHexStr(header->signature,kSHA1DigestLen),
+            signature,
             header->fileSize,
             header->headerSize,
             header->endianTag,

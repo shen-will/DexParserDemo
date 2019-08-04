@@ -99,7 +99,7 @@ LOCAL DexStringTable* readStringTable(){
 
     DexHeader *header = readDexHeader();
 
-    DexStringTable *table = malloc(sizeof(DexStringTable));
+    DexStringTable *table = newObject(DexStringTable);
 
     table->size = header->stringIdsSize;
     table->at = readStringByIndex;
@@ -127,7 +127,7 @@ LOCAL DexTypeTable* readTypeTable(){
 
     DexHeader *header = readDexHeader();
 
-    DexTypeTable *table =malloc(sizeof(DexTypeTable));
+    DexTypeTable *table =newObject(DexTypeTable);
     table->at = readTypeStrByIndex;
 
     table->size = header->typeIdsSize;
@@ -297,7 +297,7 @@ LOCAL DexClassDefTable*  readClassDefTable(){
 
     DexHeader *header = readDexHeader();
 
-    DexClassDefTable *table = (DexClassDefTable*)malloc(sizeof(table));
+    DexClassDefTable *table = newObject(DexClassDefTable);
 
     table->size = header->classDefsSize;
     table->at = readClassDefByIndex;

@@ -11,27 +11,28 @@
 
 #define LOCAL static
 
-#define getFileSize(file,psize) \
+#define getFileSize(file,psize) {\
     unsigned int t_csize = ftell(file); \
-    if(fseek(file,0,SEEK_END) != 0)\
-        return -1;\
-    *psize = ftell(file);\
-    fseek(file,t_csize,SEEK_SET)\
-\
+    if(fseek(file,0,SEEK_END) != 0){\
+        *psize =-1;\
+     }else{\
+        *psize = ftell(file);\
+        fseek(file,t_csize,SEEK_SET);\
+     }}
 
 
-#define repCharWithCopy(str,c_old,c_new,r)({\
+#define repCharWithCopy(str,dst,c_old,c_new,r){\
     unsigned int len=strlen(str)+1;\
-    char *_bak =(char*)alloca(len);\
-    strcpy(_bak,str);\
-    char *p=_bak;\
+    dst=(char*)alloca(len);\
+    strcpy(dst,str);\
+    char *p=dst;\
     while ((p=strchr(p,c_old))!=NULL){\
     *p=c_new;\
     if(r == 0)\
         break;\
-    }_bak;})
+    }}
 
-#define _bitsToHexStr(bs,type,count) ({\
+#define _bitsToHexStr(bs,bak,type,count) {\
     int len =sizeof(type) * count;\
     int step = sizeof(type);\
     unsigned char *bs_bak;\
@@ -41,7 +42,7 @@
     }else{\
         bs_bak = bs;\
     }\
-    unsigned char *bak =alloca(len*2+1);\
+    bak =(char*)alloca(len*2+1);\
     bak[len*2] =0;\
     unsigned char buf[17]={0};\
     int index=0;\
@@ -53,21 +54,8 @@
         index++;\
     }\
     if(step >1) free(bs_bak);\
-    bak;\
-})
+}
 
-#define bitsToHexStr(bs,size)({\
-    char *p;\
-    if((size % sizeof(long long)) == 0)\
-        p = _bitsToHexStr(bs,long long,size/sizeof(long long));\
-    else if((size % sizeof(int)) == 0)\
-        p = _bitsToHexStr(bs,int,size/sizeof(int));\
-    else if((size % sizeof(short)) == 0)\
-        p = _bitsToHexStr(bs,short,size/sizeof(short));\
-    else\
-        p = _bitsToHexStr(bs,char,size/sizeof(char));\
-    p;\
-})
 
 
 #define newObject(type) (type*) malloc(sizeof(type))
